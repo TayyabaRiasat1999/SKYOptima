@@ -1,0 +1,288 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "THREE.GLTFExporter"
+  },
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "nodes": [
+    {
+      "children": [
+        4
+      ],
+      "matrix": [
+        0.01,
+        0,
+        0,
+        0,
+        0,
+        0.01,
+        0,
+        0,
+        0,
+        0,
+        0.01,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "matrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -41,
+        44.99999999999996,
+        0,
+        1
+      ],
+      "name": "3D airplane icon mod.png",
+      "mesh": 0
+    },
+    {
+      "matrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -41,
+        44.99999999999996,
+        1000,
+        1
+      ],
+      "camera": 0
+    },
+    {
+      "matrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "name": "Default Ambient Light"
+    },
+    {
+      "name": "Scene 1",
+      "children": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 48,
+      "target": 34962,
+      "byteStride": 12
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 48,
+      "byteLength": 48,
+      "target": 34962,
+      "byteStride": 12
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96,
+      "byteLength": 32,
+      "target": 34962,
+      "byteStride": 8
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 128,
+      "byteLength": 24,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 152,
+      "uri": "data:application/octet-stream;base64,AABAxAAAAEQAAAAAAABARAAAAMQAAAAAAABARAAAAEQAAAAAAABAxAAAAMQAAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAIA/AAAAAAAAAAAAAAAAAQAAAAIAAAABAAAAAAAAAAMAAAA="
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "max": [
+        768,
+        512,
+        0
+      ],
+      "min": [
+        -768,
+        -512,
+        0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "max": [
+        0,
+        0,
+        1
+      ],
+      "min": [
+        0,
+        0,
+        1
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "max": [
+        1,
+        1
+      ],
+      "min": [
+        0,
+        0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5125,
+      "count": 6,
+      "max": [
+        3
+      ],
+      "min": [
+        0
+      ],
+      "type": "SCALAR"
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "mode": 4,
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "extras": {
+            "shape": {
+              "points": [
+                -768,
+                512,
+                -768,
+                512,
+                -768,
+                512,
+                0,
+                768,
+                512,
+                768,
+                512,
+                768,
+                512,
+                0,
+                768,
+                -512,
+                768,
+                -512,
+                768,
+                -512,
+                0,
+                -768,
+                -512,
+                -768,
+                -512,
+                -768,
+                -512,
+                0
+              ],
+              "shapeHoles": [],
+              "isClosed": true,
+              "roundness": 0
+            },
+            "parameters": {
+              "width": 1536,
+              "depth": 0,
+              "cornerRadius": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "cornerType": 0,
+              "extrudeBevelSize": 0,
+              "extrudeBevelSegments": 1,
+              "height": 1024,
+              "type": "RectangleGeometry"
+            },
+            "ui": {
+              "enabledIndieCorners": false
+            },
+            "type": "RectangleGeometry"
+          },
+          "indices": 3
+        }
+      ]
+    }
+  ],
+  "cameras": [
+    {
+      "type": "orthographic",
+      "orthographic": {
+        "xmag": 34.14,
+        "ymag": 18.639999999999997,
+        "zfar": 100000,
+        "znear": 0
+      }
+    }
+  ]
+}

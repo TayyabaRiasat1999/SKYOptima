@@ -1,0 +1,142 @@
+GIT Commands…or create a new repository on the command line
+echo "# AeroOptima" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/TayyabaRiasat1999/AeroOptima.git
+git push -u origin main
+…or push an existing repository from the command line
+git remote add origin https://github.com/TayyabaRiasat1999/AeroOptima.git
+git branch -M main
+git push -u origin main
+
+http://localhost:5173/
+
+Frame Work and technologies used
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.9",
+    "@mui/material": "^7.3.9",
+    "@mui/styled-engine-sc": "^7.3.9", 
+    "@supabase/supabase-js": "^2.99.2", database
+    "bcryptjs": "^3.0.3",
+    "bootstrap": "^5.3.8",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
+    "react": "^19.2.0",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.0",
+    "react-icons": "^5.6.0",
+    "react-router-dom": "^7.13.1",
+    "styled-components": "^6.3.11"
+
+
+Database 
+https://supabase.com/
+project and organization name: AeroOptima
+password : /JCH4YE5V2/./k/
+
+VITE_SUPABASE_URL=https://umcmkhlavnltycxfkqdu.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtY21raGxhdm5sdHljeGZrcWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NjY2MjUsImV4cCI6MjA4OTI0MjYyNX0.i9V_tTdPb9tWDRwvuDel4xWZCJ_IngAhB0I98umnG0w
+
+
+
+input field
+{
+  "origin": "YYZ",
+  "dest": "YVR",
+  "aircraft_icao": "B38M",
+  "operation": "Passenger",
+  "payload_kg": 12000,
+  "fuel_price_cad_per_kg": 1.1,
+  "headwind_kts": 10,
+  "precip_flag": 0,
+  "visibility_km": 12
+} this is the request
+
+
+Result
+{
+  "audit_id": "76b4d350-c212-43c3-8957-2a5c465f648c",
+  "input": {
+    "origin": "YYZ",
+    "dest": "YVR",
+    "aircraft_icao": "B38M",
+    "operation": "Passenger",
+    "payload_kg": 12000,
+    "fuel_price_cad_per_kg": 1.1,
+    "headwind_kts": 10,
+    "precip_flag": 0,
+    "visibility_km": 12
+  },
+
+
+
+  "top_3_plans": {
+    "economical": {
+      "speed_mode": "balanced",
+      "reserve_policy": "low",
+      "route_factor": 1.006,
+      "distance_km": 3365.8,
+      "pred_eta_minutes": 278.6,
+      "cost_breakdown": {
+        "fuel": 10407.68,
+        "crew": 5618.43,
+        "maintenance": 4596.9,
+        "navigation": 1415.6,
+        "landing": 1479.42,
+        "insurance": 352.77,
+        "catering": 1228.5,
+        "overhead": 1756.95,
+        "total": 26856.25
+      },
+      "final_total_cost": 26856.25,
+      "ml_pred_total_cost": 27404.69
+    },
+    "fastest": {
+      "speed_mode": "fast",
+      "reserve_policy": "normal",
+      "route_factor": 1.012,
+      "distance_km": 3385.8,
+      "pred_eta_minutes": 266.7,
+      "cost_breakdown": {
+        "fuel": 11324.17,
+        "crew": 5378.45,
+        "maintenance": 4400.55,
+        "navigation": 1421.99,
+        "landing": 1479.42,
+        "insurance": 360.07,
+        "catering": 1228.5,
+        "overhead": 1791.52,
+        "total": 27384.67
+      },
+      "final_total_cost": 27384.67,
+      "ml_pred_total_cost": 27829.38
+    },
+    "balanced": {
+      "speed_mode": "fast",
+      "reserve_policy": "normal",
+      "route_factor": 1.008,
+      "distance_km": 3372.5,
+      "pred_eta_minutes": 266.7,
+      "cost_breakdown": {
+        "fuel": 11279.69,
+        "crew": 5378.45,
+        "maintenance": 4400.55,
+        "navigation": 1417.75,
+        "landing": 1479.42,
+        "insurance": 359.34,
+        "catering": 1228.5,
+        "overhead": 1788.06,
+        "total": 27331.76
+      },
+      "final_total_cost": 27331.76,
+      "ml_pred_total_cost": 27829.38
+    }
+  }
+}
