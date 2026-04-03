@@ -25,10 +25,11 @@ export default function AppShell({ title, subtitle, children, actions }) {
     };
 
     const navItems = [
-        { label: "Dashboard", to: "/dashboard" },
-        { label: "Optimize", to: "/optimize" },
-        { label: "Results", to: "/results" },
-        { label: "Audit Trail", to: "/audit" },
+        { label: "Dashboard",   to: "/dashboard"    },
+        { label: "Optimize",    to: "/optimize"     },
+        { label: "Results",     to: "/results"      },
+        { label: "Saved Plans", to: "/saved-plans"  },
+        { label: "Audit Trail", to: "/audit"        },
     ];
 
     return (
