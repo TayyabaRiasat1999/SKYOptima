@@ -6,6 +6,7 @@ import DashboardPage from "./DashboardPage";
 import OptimizePage from "./OptimizePage";
 import ResultsPage from "./ResultsPage";
 import AuditTrailPage from "./AuditTrailPage";
+import SavedPlansPage from "./SavedPlansPage";
 import PrivateRoute from "./components/PrivateRoute";
 import PublicRoute from "./components/PublicRoute";
 
@@ -20,6 +21,7 @@ function App() {
         <Route path="/optimize" element={<PrivateRoute><OptimizePage /></PrivateRoute>} />
         <Route path="/results" element={<PrivateRoute><ResultsPage /></PrivateRoute>} />
         <Route path="/audit" element={<PrivateRoute><AuditTrailPage /></PrivateRoute>} />
+        <Route path="/saved-plans" element={<PrivateRoute><SavedPlansPage /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

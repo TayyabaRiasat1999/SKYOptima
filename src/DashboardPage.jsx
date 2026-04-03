@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
     LayoutDashboard,
@@ -8,10 +8,19 @@ import {
     ArrowRight,
 } from "lucide-react";
 import AppShell from "./AppShell";
+import { getAudits, getStats } from "./api";
 import PrimaryButton from "./components/ui/PrimaryButton";
 import GlassCard from "./components/ui/GlassCard";
 
 export default function DashboardPage() {
+    const [stats, setStats]           = useState(null);
+    const [recentRuns, setRecentRuns] = useState([]);
+
+    useEffect(() => {
+        getStats().then(setStats).catch(() => {});
+        getAudits(5).then((d) => setRecentRuns(d.items || [])).catch(() => {});
+    }, []);
+
     return (
         <AppShell
             title="Dashboard"
@@ -20,26 +29,26 @@ export default function DashboardPage() {
             <section className="mb-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     title="Scenarios Run"
-                    value="128"
-                    subtitle="Last 30 days"
+                    value={stats ? (stats.audit_records_total ?? "—") : "—"}
+                    subtitle="All optimize runs"
                     icon={<LayoutDashboard className="h-5 w-5 text-[var(--primary)]" />}
                 />
                 <StatCard
                     title="Saved Plans"
-                    value="34"
+                    value={stats ? (stats.saved_plans_total ?? "—") : "—"}
                     subtitle="Ready for review"
                     icon={<FileText className="h-5 w-5 text-[var(--primary)]" />}
                 />
                 <StatCard
-                    title="Avg ETA Gain"
-                    value="14 min"
-                    subtitle="Balanced plans"
+                    title="Dispatch Runs"
+                    value={stats ? (stats.dispatch_runs ?? "—") : "—"}
+                    subtitle="Dispatch agent mode"
                     icon={<Clock3 className="h-5 w-5 text-[var(--primary)]" />}
                 />
                 <StatCard
-                    title="Audit Records"
-                    value="52"
-                    subtitle="Tracked decisions"
+                    title="Airline Runs"
+                    value={stats ? (stats.airline_runs ?? "—") : "—"}
+                    subtitle="Domestic airline mode"
                     icon={<BarChart3 className="h-5 w-5 text-[var(--primary)]" />}
                 />
             </section>
@@ -118,28 +127,69 @@ export default function DashboardPage() {
                         <div className="grid grid-cols-5 border-b border-white/10 bg-[rgba(255,255,255,0.04)] text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-soft)]">
                             <div className="p-4">Route</div>
                             <div className="p-4">Aircraft</div>
-                            <div className="p-4">Plan</div>
+                            <div className="p-4">Mode</div>
                             <div className="p-4">ETA</div>
                             <div className="p-4">Cost</div>
                         </div>
 
-                        <RunRow route="YYZ → YVR" aircraft="B38M" plan="Balanced" eta="4h 44m" cost="$19,210" />
-                        <RunRow route="YYZ → YYC" aircraft="A320" plan="Economical" eta="3h 51m" cost="$15,980" />
-                        <RunRow route="YUL → YVR" aircraft="B38M" plan="Fastest" eta="5h 02m" cost="$21,140" />
+                        {recentRuns.length === 0 ? (
+                            <div className="p-6 text-center text-sm text-[var(--text-soft)]">No runs yet.</div>
+                        ) : (
+                            recentRuns.map((row) => (
+                                <RunRow
+                                    key={row.audit_id}
+                                    route={`${row.origin ?? "?"} → ${row.dest ?? "?"}`}
+                                    aircraft={row.aircraft_icao ?? "—"}
+                                    plan={row.mode === "domestic_airline" ? "Airline" : "Dispatch"}
+                                    eta={fmtETA(row.response_json?.top_3_plans?.balanced?.pred_eta_minutes)}
+                                    cost={fmtCost(row.response_json?.top_3_plans?.balanced?.final_total_cost)}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
 
                 <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.22)] backdrop-blur-md">
                     <div className="text-2xl font-bold">Recent Activity</div>
                     <div className="mt-4 space-y-4">
-                        <ActivityItem title="Balanced plan selected" subtitle="YYZ → YVR • 12 minutes ago" />
-                        <ActivityItem title="Scenario saved to audit trail" subtitle="YUL → YVR • 1 hour ago" />
-                        <ActivityItem title="New dispatcher session started" subtitle="Today • 08:42 AM" />
+                        {recentRuns.length === 0 ? (
+                            <div className="text-sm text-[var(--text-soft)]">No recent activity.</div>
+                        ) : (
+                            recentRuns.slice(0, 3).map((row) => (
+                                <ActivityItem
+                                    key={row.audit_id}
+                                    title={`${row.origin ?? "?"} → ${row.dest ?? "?"} · ${row.aircraft_icao ?? "—"}`}
+                                    subtitle={`${row.mode === "domestic_airline" ? "Airline mode" : "Dispatch agent"} · ${timeAgo(row.created_at)}`}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
             </section>
         </AppShell>
     );
+}
+
+function fmtETA(minutes) {
+    if (minutes == null) return "—";
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+    return `${h}h ${m}m`;
+}
+
+function fmtCost(val) {
+    if (val == null) return "—";
+    return "$" + Number(val).toLocaleString("en-CA", { maximumFractionDigits: 0 });
+}
+
+function timeAgo(isoStr) {
+    if (!isoStr) return "—";
+    const mins = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
+    if (mins < 1)  return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)  return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function StatCard({ title, value, subtitle, icon }) {

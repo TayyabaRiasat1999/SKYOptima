@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
     FileText,
@@ -9,19 +9,77 @@ import {
     Download,
 } from "lucide-react";
 import AppShell from "./AppShell";
+import { getAudits, getStats } from "./api";
 
 export default function AuditTrailPage() {
+    const [audits, setAudits] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [stats, setStats] = useState(null);
+
+    useEffect(() => {
+        getStats().then(setStats).catch(() => {});
+    }, []);
+
+    const filteredAudits = searchQuery.trim() === ""
+        ? audits
+        : audits.filter((row) => {
+            const q = searchQuery.toLowerCase();
+            return (
+                (row.audit_id      ?? "").toLowerCase().includes(q) ||
+                (row.mode          ?? "").toLowerCase().includes(q) ||
+                (row.origin        ?? "").toLowerCase().includes(q) ||
+                (row.dest          ?? "").toLowerCase().includes(q) ||
+                (row.aircraft_icao ?? "").toLowerCase().includes(q) ||
+                (row.operation     ?? "").toLowerCase().includes(q)
+            );
+        });
+
+    function exportCSV() {
+        if (filteredAudits.length === 0) return;
+        const headers = ["created_at", "audit_id", "mode", "origin", "dest", "aircraft_icao", "operation", "payload_kg"];
+        const rows = filteredAudits.map((r) =>
+            headers.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(",")
+        );
+        const csv = [headers.join(","), ...rows].join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "audit-trail-export.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    useEffect(() => {
+        getAudits(50)
+            .then((data) => setAudits(data.items || []))
+            .catch((err) => setError(err.message))
+            .finally(() => setLoading(false));
+    }, []);
+
     return (
         <AppShell
             title="Audit Trail"
             subtitle="Review saved decisions, selected plans, and recommendation context."
             actions={
                 <>
-                    <button className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--text-soft)]">
-                        <Search className="h-4 w-4" />
-                        Search records
-                    </button>
-                    <button className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--text-soft)]">
+                    <div className="relative inline-flex items-center">
+                        <Search className="absolute left-3 h-4 w-4 text-[var(--text-soft)]" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search records…"
+                            className="rounded-2xl border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-sm text-[var(--text-soft)] outline-none placeholder:text-[var(--text-soft)]"
+                        />
+                    </div>
+                    <button
+                        onClick={exportCSV}
+                        disabled={filteredAudits.length === 0}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--text-soft)] disabled:opacity-40"
+                    >
                         <Download className="h-4 w-4" />
                         Export
                     </button>
@@ -36,8 +94,8 @@ export default function AuditTrailPage() {
         >
             <section className="mb-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard
-                    title="Records Saved"
-                    value="52"
+                    title="Audit Records"
+                    value={stats ? (stats.audit_records_total ?? "—") : "—"}
                     subtitle="Decision snapshots"
                     icon={<FileText className="h-5 w-5 text-[var(--primary)]" />}
                 />
@@ -79,38 +137,58 @@ export default function AuditTrailPage() {
                         </Link>
                     </div>
 
-                    <div className="space-y-4">
-                        <AuditRecord
-                            route="YYZ → YVR"
-                            aircraft="B38M"
-                            selectedPlan="Balanced"
-                            cost="$19,210"
-                            eta="4h 44m"
-                            reason="Best time-cost trade-off with stable risk profile"
-                            time="Saved 12 minutes ago"
-                            recommended
-                        />
-
-                        <AuditRecord
-                            route="YYZ → YYC"
-                            aircraft="A320"
-                            selectedPlan="Economical"
-                            cost="$15,980"
-                            eta="3h 51m"
-                            reason="Lowest projected cost under moderate schedule pressure"
-                            time="Saved 1 hour ago"
-                        />
-
-                        <AuditRecord
-                            route="YUL → YVR"
-                            aircraft="B38M"
-                            selectedPlan="Fastest"
-                            cost="$21,140"
-                            eta="5h 02m"
-                            reason="Schedule urgency justified higher fuel and cost profile"
-                            time="Saved today at 08:42 AM"
-                        />
-                    </div>
+                    {loading && (
+                        <div className="py-8 text-center text-sm text-[var(--text-soft)]">Loading…</div>
+                    )}
+                    {error && (
+                        <div className="py-8 text-center text-sm text-red-400">{error}</div>
+                    )}
+                    {!loading && !error && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-white/10 text-left text-xs uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                                        <th className="pb-3 pr-4">Date</th>
+                                        <th className="pb-3 pr-4">Audit ID</th>
+                                        <th className="pb-3 pr-4">Mode</th>
+                                        <th className="pb-3 pr-4">Route</th>
+                                        <th className="pb-3 pr-4">Aircraft</th>
+                                        <th className="pb-3 pr-4">Operation</th>
+                                        <th className="pb-3">Payload</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {filteredAudits.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="py-6 text-center text-[var(--text-soft)]">
+                                                {searchQuery.trim() ? "No audit records match your search." : "No audit records found."}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredAudits.map((row) => (
+                                            <tr key={row.audit_id} className="text-[var(--text)]">
+                                                <td className="py-3 pr-4 text-[var(--text-soft)]">
+                                                    {new Date(row.created_at).toLocaleString()}
+                                                </td>
+                                                <td className="py-3 pr-4 font-mono text-xs">
+                                                    {row.audit_id?.slice(0, 8)}…
+                                                </td>
+                                                <td className="py-3 pr-4">{row.mode}</td>
+                                                <td className="py-3 pr-4">
+                                                    {row.origin && row.dest ? `${row.origin} → ${row.dest}` : "—"}
+                                                </td>
+                                                <td className="py-3 pr-4">{row.aircraft_icao ?? "—"}</td>
+                                                <td className="py-3 pr-4">{row.operation ?? "—"}</td>
+                                                <td className="py-3">
+                                                    {row.payload_kg != null ? `${Number(row.payload_kg).toLocaleString()} kg` : "—"}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-6">

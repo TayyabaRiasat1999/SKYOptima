@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Secrets / dev scratchpad
+read me.txt
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
