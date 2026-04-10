@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
     BadgeDollarSign,
     Clock3,
+    CloudSun,
     Fuel,
     ShieldCheck,
     CheckCircle2,
@@ -36,6 +37,39 @@ function fmtNum(val, decimals = 0) {
     if (val == null) return "—";
     return Number(val).toLocaleString("en-CA", { maximumFractionDigits: decimals });
 }
+
+function capitalize(s) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function normalizeLevel(level) {
+    return typeof level === "string" && level ? level.toLowerCase() : "unknown";
+}
+
+function fmtMetarSummary(metar) {
+    if (!metar) return "METAR unavailable";
+
+    const parts = [];
+
+    if (metar.flight_category) parts.push(metar.flight_category);
+    if (metar.visibility != null) parts.push(`Vis ${metar.visibility}`);
+    if (metar.wind_speed_kt != null) parts.push(`Wind ${fmtNum(metar.wind_speed_kt)} kt`);
+
+    return parts.length > 0 ? `METAR: ${parts.join(" | ")}` : "METAR available";
+}
+
+// Risk label → badge colour classes
+const RISK_BADGE = {
+    low:    "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+    medium: "border-amber-500/20   bg-amber-500/10   text-amber-400",
+    high:   "border-red-500/20     bg-red-500/10     text-red-400",
+};
+
+const WEATHER_BADGE = {
+    ...RISK_BADGE,
+    unknown: "border-white/10 bg-white/5 text-[var(--text-soft)]",
+};
 
 // ── card config (render in this order) — same for both modes ─────────────────
 
@@ -96,6 +130,9 @@ export default function ResultsPage() {
     const operation   = rc.operation    ?? inp?.operation    ?? "—";
     const payloadKg   = rc.payload_kg   ?? inp?.payload_kg;
 
+    // scheduled_departure_local is present on both response.input and the original request
+    const scheduledDeparture = inp?.scheduled_departure_local ?? request?.scheduled_departure_local ?? null;
+
     const routeLabel = `${origin} → ${dest}`;
 
     const subLabel = isAirline
@@ -108,6 +145,7 @@ export default function ResultsPage() {
             .filter(Boolean).join(" • ");
 
     const balancedPlan = plans.balanced;
+    const liveWeather = response.live_weather ?? null;
 
     // Mode badge shown in the header
     const modeBadge = isAirline ? "Airline Mode" : "Dispatch Agent";
@@ -115,7 +153,7 @@ export default function ResultsPage() {
     return (
         <AppShell
             title="Optimization Results"
-            subtitle="Compare ranked plans and review recommendation logic."
+            subtitle="Review the three ranked plans and save your chosen option."
             actions={
                 <>
                     <Link
@@ -175,6 +213,7 @@ export default function ResultsPage() {
                                     response={response}
                                     rc={rc}
                                     inp={inp}
+                                    scheduledDeparture={scheduledDeparture}
                                 />
                             );
                         })}
@@ -188,10 +227,10 @@ export default function ResultsPage() {
                         title="Recommended Decision"
                         content={
                             balancedPlan
-                                ? `Balanced is ranked first. Speed mode: ${balancedPlan.speed_mode ?? "—"}, ` +
-                                  `reserve: ${balancedPlan.reserve_policy ?? "—"}, ` +
-                                  `cost: ${fmtCost(balancedPlan.final_total_cost)}, ` +
-                                  `ETA: ${fmtETA(balancedPlan.pred_eta_minutes)}.`
+                                ? `Balanced — ${fmtCost(balancedPlan.final_total_cost)}, ` +
+                                  `${fmtETA(balancedPlan.pred_eta_minutes)} ETA · ` +
+                                  `${balancedPlan.speed_mode ?? "—"} speed, ` +
+                                  `${balancedPlan.reserve_policy ?? "—"} reserve.`
                                 : "Balanced plan data unavailable."
                         }
                     />
@@ -203,11 +242,12 @@ export default function ResultsPage() {
                             title="Airline Context"
                             content={
                                 [
-                                    rc.airline_name && `Airline: ${rc.airline_name} (${rc.airline_id})`,
-                                    rc.route_id     && `Route: ${rc.route_id} — ${rc.origin} → ${rc.dest}`,
-                                    rc.aircraft_icao && `Aircraft: ${rc.aircraft_icao} (from ${rc.aircraft_icao_source ?? "—"})`,
-                                    rc.operation    && `Operation: ${rc.operation} (from ${rc.operation_source ?? "—"})`,
-                                    rc.payload_kg != null && `Payload: ${fmtNum(rc.payload_kg)} kg (from ${rc.payload_kg_source ?? "—"})`,
+                                    rc.airline_name && `${rc.airline_name} (${rc.airline_id})`,
+                                    rc.route_id     && `Route ${rc.route_id} — ${rc.origin} → ${rc.dest}`,
+                                    rc.aircraft_icao && `Aircraft: ${rc.aircraft_icao}`,
+                                    rc.operation    && `Operation: ${rc.operation}`,
+                                    rc.payload_kg != null && `Payload: ${fmtNum(rc.payload_kg)} kg`,
+                                    scheduledDeparture && `Departure: ${scheduledDeparture}`,
                                 ]
                                     .filter(Boolean)
                                     .join(". ") || "No context available."
@@ -218,19 +258,21 @@ export default function ResultsPage() {
                             icon={<Route className="h-5 w-5 text-[var(--primary)]" />}
                             title="Input Summary"
                             content={
-                                `Origin ${origin}, destination ${dest}, ` +
-                                `aircraft ${aircraftIcao}, ${operation} operation, ` +
-                                `payload ${fmtNum(payloadKg)} kg, ` +
-                                `fuel ${inp?.fuel_price_cad_per_kg ?? "—"} CAD/kg, ` +
-                                `visibility ${inp?.visibility_km ?? "—"} km.`
+                                `${origin} → ${dest} · ${aircraftIcao} · ` +
+                                `${fmtNum(payloadKg)} kg payload · ` +
+                                `Fuel ${inp?.fuel_price_cad_per_kg ?? "—"} CAD/kg · ` +
+                                `Visibility ${inp?.visibility_km ?? "—"} km` +
+                                (scheduledDeparture ? ` · Dep. ${scheduledDeparture}` : "") + `.`
                             }
                         />
                     )}
 
+                    <LiveWeatherPanel liveWeather={liveWeather} />
+
                     <SidePanel
                         icon={<FileText className="h-5 w-5 text-[var(--primary)]" />}
                         title="Audit ID"
-                        content={response.audit_id ?? "Not returned by backend."}
+                        content={response.audit_id ?? "Not available."}
                     />
                 </div>
 
@@ -241,7 +283,7 @@ export default function ResultsPage() {
 
 // ── ResultCard ───────────────────────────────────────────────────────────────
 
-function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, request, response, rc, inp }) {
+function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, request, response, rc, inp, scheduledDeparture }) {
     const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
     const [saveError, setSaveError] = useState("");
 
@@ -250,18 +292,19 @@ function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, r
         setSaveError("");
 
         const payload = {
-            audit_id:              auditId,
-            mode:                  mode,                          // "dispatch_agent" | "domestic_airline"
-            plan_type:             planKey,
-            origin:                rc.origin       ?? inp?.origin,
-            dest:                  rc.dest         ?? inp?.dest,
-            aircraft_icao:         rc.aircraft_icao ?? inp?.aircraft_icao,
-            operation:             rc.operation    ?? inp?.operation,
-            payload_kg:            rc.payload_kg   ?? inp?.payload_kg,
-            request_json:          request,                       // original payload sent to backend
-            resolved_context_json: response.resolved_context ?? {},
-            plan_json:             plan,
-            full_response_json:    response,
+            audit_id:                  auditId,
+            mode:                      mode,                          // "dispatch_agent" | "domestic_airline"
+            plan_type:                 planKey,
+            origin:                    rc.origin       ?? inp?.origin,
+            dest:                      rc.dest         ?? inp?.dest,
+            aircraft_icao:             rc.aircraft_icao ?? inp?.aircraft_icao,
+            operation:                 rc.operation    ?? inp?.operation,
+            payload_kg:                rc.payload_kg   ?? inp?.payload_kg,
+            request_json:              request,                       // original payload sent to backend
+            resolved_context_json:     response.resolved_context ?? {},
+            plan_json:                 plan,
+            full_response_json:        response,
+            scheduled_departure_local: scheduledDeparture ?? null,
         };
 
         try {
@@ -278,7 +321,7 @@ function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, r
     const metrics = [
         {
             icon:  <BadgeDollarSign className="h-4 w-4" />,
-            label: "Cost",
+            label: "Total Cost",
             value: fmtCost(plan.final_total_cost),
         },
         {
@@ -302,7 +345,7 @@ function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, r
         plan.distance_km        != null && `Distance: ${fmtNum(plan.distance_km, 0)} km`,
         plan.reserve_policy                && `Reserve: ${plan.reserve_policy}`,
         plan.route_factor       != null && `Route factor: ${plan.route_factor}`,
-        plan.ml_pred_total_cost != null && `ML estimate: ${fmtCost(plan.ml_pred_total_cost)}`,
+        plan.ml_pred_total_cost != null && `Model estimate: ${fmtCost(plan.ml_pred_total_cost)}`,
     ].filter(Boolean);
 
     return (
@@ -373,12 +416,61 @@ function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, r
             {/* detail row */}
             {details.length > 0 && (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="mb-2 text-sm font-semibold">Plan details</div>
+                    <div className="mb-0.5 text-sm font-semibold">Plan details</div>
+                    <p className="mb-2 text-xs text-[var(--text-soft)]">
+                        Total Cost is the computed breakdown &middot; Model estimate is the ML-predicted reference
+                    </p>
                     <ul className="space-y-1.5 text-sm text-[var(--text-soft)]">
                         {details.map((d) => (
                             <li key={d}>• {d}</li>
                         ))}
                     </ul>
+                </div>
+            )}
+
+            {/* risk assessment */}
+            {plan.risk_assessment?.risk_label && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="mb-2 text-sm font-semibold">Risk Assessment</div>
+                    <div className="flex items-center gap-3">
+                        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${RISK_BADGE[plan.risk_assessment.risk_label] ?? "border-white/10 bg-white/5 text-[var(--text-soft)]"}`}>
+                            {capitalize(plan.risk_assessment.risk_label)}
+                        </span>
+                        {plan.risk_assessment.risk_score != null && (
+                            <span className="text-xs text-[var(--text-soft)]">
+                                Score: {plan.risk_assessment.risk_score}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* efficiency metrics */}
+            {plan.efficiency_metrics && Object.values(plan.efficiency_metrics).some((v) => v != null) && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="mb-2 text-sm font-semibold">Efficiency</div>
+                    <ul className="space-y-1.5 text-sm text-[var(--text-soft)]">
+                        {plan.efficiency_metrics.cad_per_km != null && (
+                            <li>• Cost per km: {fmtNum(plan.efficiency_metrics.cad_per_km, 2)} CAD/km</li>
+                        )}
+                        {plan.efficiency_metrics.cad_per_minute != null && (
+                            <li>• Cost per min: {fmtNum(plan.efficiency_metrics.cad_per_minute, 2)} CAD/min</li>
+                        )}
+                        {plan.efficiency_metrics.estimated_fuel_kg != null && (
+                            <li>• Est. fuel: {fmtNum(plan.efficiency_metrics.estimated_fuel_kg, 0)} kg</li>
+                        )}
+                        {plan.efficiency_metrics.estimated_fuel_cost_share_pct != null && (
+                            <li>• Fuel cost share: {fmtNum(plan.efficiency_metrics.estimated_fuel_cost_share_pct, 1)}%</li>
+                        )}
+                    </ul>
+                </div>
+            )}
+
+            {/* interpretation */}
+            {plan.interpretation && (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="mb-2 text-sm font-semibold">Why this plan</div>
+                    <p className="text-sm leading-7 text-[var(--text-soft)]">{plan.interpretation}</p>
                 </div>
             )}
         </div>
@@ -397,6 +489,70 @@ function SidePanel({ icon, title, content }) {
                 <div className="text-lg font-semibold">{title}</div>
             </div>
             <p className="text-sm leading-7 text-[var(--text-soft)]">{content}</p>
+        </div>
+    );
+}
+
+function LiveWeatherPanel({ liveWeather }) {
+    const isAvailable = liveWeather?.available === true;
+    const impact = liveWeather?.weather_impact ?? {};
+    const impactLevel = normalizeLevel(impact.level);
+    const summary = isAvailable
+        ? impact.summary ?? "Live weather available."
+        : "Live weather is unavailable for this route right now.";
+
+    return (
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.22)] backdrop-blur-md">
+            <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(56,189,248,0.14),rgba(96,165,250,0.08))]">
+                        <CloudSun className="h-5 w-5 text-[var(--primary)]" />
+                    </div>
+                    <div className="text-lg font-semibold">Live Weather</div>
+                </div>
+
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${WEATHER_BADGE[impactLevel] ?? WEATHER_BADGE.unknown}`}>
+                    {capitalize(impactLevel)}
+                </span>
+            </div>
+
+            <p className="text-sm leading-7 text-[var(--text-soft)]">{summary}</p>
+
+            <div className="mt-4 space-y-3">
+                <WeatherStationCard label="Origin ICAO" station={liveWeather?.origin} />
+                <WeatherStationCard label="Destination ICAO" station={liveWeather?.destination} />
+            </div>
+
+            {!isAvailable && (
+                <p className="mt-3 text-xs leading-6 text-[var(--text-soft)]">
+                    Results are still shown without live airport weather details.
+                </p>
+            )}
+        </div>
+    );
+}
+
+function WeatherStationCard({ label, station }) {
+    return (
+        <div className="rounded-2xl border border-white/10 bg-[rgba(8,18,32,0.42)] p-4">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                        {label}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                        {station?.icao ?? "Unavailable"}
+                    </div>
+                </div>
+
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[var(--text-soft)]">
+                    {station?.taf ? "TAF available" : "No TAF"}
+                </span>
+            </div>
+
+            <p className="mt-2 text-xs leading-6 text-[var(--text-soft)]">
+                {fmtMetarSummary(station?.metar)}
+            </p>
         </div>
     );
 }
