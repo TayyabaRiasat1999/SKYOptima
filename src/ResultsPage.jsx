@@ -47,16 +47,58 @@ function normalizeLevel(level) {
     return typeof level === "string" && level ? level.toLowerCase() : "unknown";
 }
 
+function fmtVisibility(value) {
+    if (value == null) return null;
+    if (typeof value === "number") return `${fmtNum(value)} SM`;
+
+    const text = String(value).trim().toUpperCase();
+    if (!text) return null;
+    if (text === "P6SM") return "6+ SM";
+    if (text === "10+") return "10+ SM";
+    if (text.endsWith("SM")) return text;
+    return `${text} SM`;
+}
+
 function fmtMetarSummary(metar) {
-    if (!metar) return "METAR unavailable";
+    if (!metar) return "Current conditions are unavailable.";
 
-    const parts = [];
+    const conditionLead = {
+        VFR: "Flying conditions look good.",
+        MVFR: "Conditions look somewhat limited.",
+        IFR: "Conditions may slow normal operations.",
+        LIFR: "Conditions look poor for normal operations.",
+    }[metar.flight_category] ?? "Current airport conditions are available.";
 
-    if (metar.flight_category) parts.push(metar.flight_category);
-    if (metar.visibility != null) parts.push(`Vis ${metar.visibility}`);
-    if (metar.wind_speed_kt != null) parts.push(`Wind ${fmtNum(metar.wind_speed_kt)} kt`);
+    const details = [];
+    const visibility = fmtVisibility(metar.visibility);
 
-    return parts.length > 0 ? `METAR: ${parts.join(" | ")}` : "METAR available";
+    if (visibility) details.push(`visibility is ${visibility}`);
+    if (metar.wind_speed_kt != null) details.push(`wind is ${fmtNum(metar.wind_speed_kt)} kt`);
+
+    if (details.length === 0) return conditionLead;
+    return `${conditionLead} ${capitalize(details.join(" and "))}.`;
+}
+
+function getAirportDisplay(station) {
+    const name = station?.metar?.name ? String(station.metar.name).trim() : null;
+    const requested = station?.requested ? String(station.requested).trim().toUpperCase() : null;
+    const icao = station?.icao ? String(station.icao).trim().toUpperCase() : null;
+    const primary = name || requested || icao || "Unavailable";
+    const secondaryParts = [];
+
+    if (requested && requested !== primary) secondaryParts.push(requested);
+    if (icao && icao !== primary && icao !== requested) secondaryParts.push(icao);
+
+    const secondary = secondaryParts.length ? secondaryParts.join(" • ") : null;
+    return { primary, secondary };
+}
+
+function getWeatherImpactCopy(level, isAvailable, fallbackSummary) {
+    if (!isAvailable) return "Live airport weather is unavailable right now.";
+    if (level === "low") return "Conditions look stable across both airports.";
+    if (level === "medium") return "Some weather friction is possible across the route.";
+    if (level === "high") return "Current conditions may need extra operational caution.";
+    return fallbackSummary ?? "Live airport conditions are available.";
 }
 
 // Risk label → badge colour classes
@@ -345,7 +387,6 @@ function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, r
         plan.distance_km        != null && `Distance: ${fmtNum(plan.distance_km, 0)} km`,
         plan.reserve_policy                && `Reserve: ${plan.reserve_policy}`,
         plan.route_factor       != null && `Route factor: ${plan.route_factor}`,
-        plan.ml_pred_total_cost != null && `Model estimate: ${fmtCost(plan.ml_pred_total_cost)}`,
     ].filter(Boolean);
 
     return (
@@ -417,10 +458,7 @@ function ResultCard({ planKey, title, badge, recommended, plan, auditId, mode, r
             {details.length > 0 && (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="mb-0.5 text-sm font-semibold">Plan details</div>
-                    <p className="mb-2 text-xs text-[var(--text-soft)]">
-                        Total Cost is the computed breakdown &middot; Model estimate is the ML-predicted reference
-                    </p>
-                    <ul className="space-y-1.5 text-sm text-[var(--text-soft)]">
+                    <ul className="mt-2 space-y-1.5 text-sm text-[var(--text-soft)]">
                         {details.map((d) => (
                             <li key={d}>• {d}</li>
                         ))}
@@ -497,34 +535,41 @@ function LiveWeatherPanel({ liveWeather }) {
     const isAvailable = liveWeather?.available === true;
     const impact = liveWeather?.weather_impact ?? {};
     const impactLevel = normalizeLevel(impact.level);
-    const summary = isAvailable
-        ? impact.summary ?? "Live weather available."
-        : "Live weather is unavailable for this route right now.";
+    const summary = getWeatherImpactCopy(impactLevel, isAvailable, impact.summary);
+    const supportText = isAvailable && impactLevel === "unknown" ? impact.summary ?? null : null;
 
     return (
         <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.22)] backdrop-blur-md">
-            <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(56,189,248,0.14),rgba(96,165,250,0.08))]">
                         <CloudSun className="h-5 w-5 text-[var(--primary)]" />
                     </div>
-                    <div className="text-lg font-semibold">Live Weather</div>
+                    <div>
+                        <div className="text-xl font-bold tracking-[-0.02em]">Live Weather</div>
+                        <div className="mt-1 text-sm text-[var(--text-soft)]">
+                            Airport conditions along the route
+                        </div>
+                    </div>
                 </div>
 
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${WEATHER_BADGE[impactLevel] ?? WEATHER_BADGE.unknown}`}>
+                <span className={`rounded-full border px-3 py-1.5 text-sm font-bold ${WEATHER_BADGE[impactLevel] ?? WEATHER_BADGE.unknown}`}>
                     {capitalize(impactLevel)}
                 </span>
             </div>
 
-            <p className="text-sm leading-7 text-[var(--text-soft)]">{summary}</p>
+            <p className="text-[15px] font-semibold leading-7 text-[var(--text)]">{summary}</p>
+            {supportText && (
+                <p className="mt-2 text-sm leading-6 text-[var(--text-soft)]">{supportText}</p>
+            )}
 
-            <div className="mt-4 space-y-3">
-                <WeatherStationCard label="Origin ICAO" station={liveWeather?.origin} />
-                <WeatherStationCard label="Destination ICAO" station={liveWeather?.destination} />
+            <div className="mt-6 space-y-5">
+                <WeatherStationCard label="Departure Weather" station={liveWeather?.origin} />
+                <WeatherStationCard label="Arrival Weather" station={liveWeather?.destination} />
             </div>
 
             {!isAvailable && (
-                <p className="mt-3 text-xs leading-6 text-[var(--text-soft)]">
+                <p className="mt-4 text-xs leading-6 text-[var(--text-soft)]">
                     Results are still shown without live airport weather details.
                 </p>
             )}
@@ -533,26 +578,36 @@ function LiveWeatherPanel({ liveWeather }) {
 }
 
 function WeatherStationCard({ label, station }) {
+    const { primary, secondary } = getAirportDisplay(station);
+
     return (
-        <div className="rounded-2xl border border-white/10 bg-[rgba(8,18,32,0.42)] p-4">
-            <div className="flex items-center justify-between gap-3">
+        <div className="rounded-2xl border border-white/10 bg-[rgba(8,18,32,0.42)] p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-soft)]">
                         {label}
                     </div>
-                    <div className="mt-1 text-sm font-semibold">
-                        {station?.icao ?? "Unavailable"}
-                    </div>
+                    <div className="mt-2 text-lg font-semibold leading-7">{primary}</div>
+                    {secondary && (
+                        <div className="mt-1 text-xs font-medium tracking-[0.04em] text-[var(--text-soft)]">
+                            {secondary}
+                        </div>
+                    )}
                 </div>
 
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[var(--text-soft)]">
-                    {station?.taf ? "TAF available" : "No TAF"}
+                    {station?.taf ? "Forecast available" : "No forecast"}
                 </span>
             </div>
 
-            <p className="mt-2 text-xs leading-6 text-[var(--text-soft)]">
-                {fmtMetarSummary(station?.metar)}
-            </p>
+            <div className="mt-4 border-t border-white/8 pt-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                    Current conditions
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[var(--text)]">
+                    {fmtMetarSummary(station?.metar)}
+                </p>
+            </div>
         </div>
     );
 }
